@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>MoodPop — Photobooth Online</title>
+
+  <link rel="stylesheet" href="style.css" />
+
+  <!-- p5.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/addons/p5.sound.min.js"></script>
+
+  <!-- ml5.js -->
+  <script src="https://unpkg.com/ml5@latest/dist/ml5.min.js"></script>
+</head>
+
+<body>
+  <div id="emoji-bg-container"></div>
+
+  <div id="container">
+    <header>
+      <div class="cute-header">
+        <span>✨</span>
+        <h1>MoodPop 💖</h1>
+        <span>✨</span>
+      </div>
+      <p>Photobooth Online dengan Deteksi Ekspresi & Grid Collage</p>
+    </header>
+
+    <div id="controls">
+      <div class="grid-selector">
+        <label>Pilih Grid: 🎯</label>
+        <button class="grid-btn active" data-grid="1">1</button>
+        <button class="grid-btn" data-grid="2">2</button>
+        <button class="grid-btn" data-grid="4">4</button>
+        <button class="grid-btn" data-grid="6">6</button>
+        <button class="grid-btn" data-grid="8">8</button>
+      </div>
+
+      <div class="camera-controls">
+        <div id="shot-progress" class="shot-progress hidden">0 / 0</div>
+        <button id="capture-btn">📸 Ambil Foto</button>
+        <button id="download-btn" class="hidden">💾 Unduh Collage</button>
+        <button id="reset-btn">🔄 Reset</button>
+        <button id="mirror-toggle" class="ui-btn small">🪞 Mirror</button>
+      </div>
+    </div>
+
+    <div id="photobooth">
+      <div id="canvas-container">
+        <div id="loading-state">
+          <div class="loading-spinner"></div>
+          <p>🎀 Memuat kamera...</p>
+        </div>
+      </div>
+
+      <div id="overlay-ui">
+        <div id="countdown" class="hidden"></div>
+        <div id="expression-badge">⋯</div>
+      </div>
+
+      <div id="status">🎀 Mengaktifkan kamera...</div>
+    </div>
+
+    <div id="gallery" class="hidden">
+      <h2>🖼️ Galeri Foto</h2>
+      <div id="photo-list"></div>
+    </div>
+  </div>
+
+  <script src="sketch.js"></script>
+</body>
+</html>
