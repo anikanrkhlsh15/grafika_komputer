@@ -72,9 +72,9 @@ const Constants = {
   FRAME_RATE: 24,
   BUFFER_WIDTH: 640,
   BUFFER_HEIGHT: 480,
-  MAX_FLOATING_EMOJIS: 30,
-  TRIM_FLOATING_EMOJIS: 20,
-  EMOJI_SPAWN_COUNT: 8,
+  MAX_FLOATING_EMOJIS: 60,
+  TRIM_FLOATING_EMOJIS: 40,
+  EMOJI_SPAWN_COUNT: 16,
   CONFETTI_COUNT: 8,
   BACKGROUND_EMOJI_COUNT: 12
 };
@@ -367,18 +367,18 @@ const EmojiModule = {
       const { x: videoX, y: videoY, width: videoW, height: videoH } = 
         VideoModule.getVideoCanvasCoordinates();
       
-      const scaleX = videoW / AppState.video.width;
-      const scaleY = videoH / AppState.video.height;
+      // Emoji muncul di pinggir dan atas frame, bukan di tengah wajah
+      const positions = [
+        { x: random(10, width * 0.3), y: random(10, height * 0.25) },      // Kiri atas
+        { x: random(width * 0.7, width - 10), y: random(10, height * 0.25) }, // Kanan atas
+        { x: random(10, width * 0.2), y: random(height * 0.4, height - 50) },  // Kiri tengah-bawah
+        { x: random(width * 0.8, width - 10), y: random(height * 0.4, height - 50) }, // Kanan tengah-bawah
+        { x: random(width * 0.3, width * 0.7), y: random(10, height * 0.2) }   // Atas tengah
+      ];
       
-      let faceX = videoX + box.x * scaleX + box.width * scaleX / 2;
-      let faceY = videoY + box.y * scaleY + box.height * scaleY / 2;
-      
-      if (AppState.mirror) {
-        faceX = videoX + videoW - (faceX - videoX);
-      }
-      
-      x = faceX + random(-40, 40);
-      y = faceY + random(-30, 30);
+      const randomPos = random(positions);
+      x = randomPos.x;
+      y = randomPos.y;
     } else {
       x = random(width);
       y = random(height - 100, height);
@@ -393,22 +393,26 @@ const EmojiModule = {
       size: random(18, 28),
       color: col,
       alpha: 255,
-      life: 80
+      life: 200
     });
   },
   
   updateFloatingEmojis() {
+    // Jika sedang capturing, freeze emoji agar tetap tertangkap dalam foto
     for (let i = AppState.emojisFloating.length - 1; i >= 0; i--) {
       const e = AppState.emojisFloating[i];
       
-      e.x += e.vx;
-      e.y += e.vy;
-      e.alpha -= 3;
-      e.life--;
-      
-      if (e.life <= 0 || e.alpha <= 0) {
-        AppState.emojisFloating.splice(i, 1);
-        continue;
+      // Hanya update jika tidak sedang capturing
+      if (!AppState.capturing) {
+        e.x += e.vx;
+        e.y += e.vy;
+        e.alpha -= 0.8;
+        e.life--;
+        
+        if (e.life <= 0 || e.alpha <= 0) {
+          AppState.emojisFloating.splice(i, 1);
+          continue;
+        }
       }
       
       push();
@@ -515,9 +519,8 @@ const CaptureModule = {
   },
   
   capturePhoto() {
-    if (frameCount % 2 === 0) {
-      VideoModule.drawToBuffer();
-    }
+    // Selalu update buffer dan render emoji sebelum capture
+    VideoModule.drawToBuffer();
     
     const imgData = AppState.buffer.canvas.toDataURL("image/jpeg", 0.9);
     AppState.shots.push(imgData);
@@ -546,16 +549,40 @@ const CaptureModule = {
     
     const cw = 320;
     const ch = 240;
-    const collageWidth = cw * cols;
-    const collageHeight = ch * rows;
+    const padding = 30;
+    const borderWidth = 4;
+    const gapSize = 15;
+    
+    const photosWidth = cw * cols + gapSize * (cols - 1);
+    const photosHeight = ch * rows + gapSize * (rows - 1);
+    const collageWidth = photosWidth + padding * 2;
+    const collageHeight = photosHeight + padding * 2 + 80; // Extra space untuk header
     
     const collageCanvas = document.createElement("canvas");
     collageCanvas.width = collageWidth;
     collageCanvas.height = collageHeight;
     const ctx = collageCanvas.getContext("2d");
     
-    ctx.fillStyle = "#fff";
+    // Background gradient
+    const gradient = ctx.createLinearGradient(0, 0, 0, collageHeight);
+    gradient.addColorStop(0, "#FFF5F9");
+    gradient.addColorStop(1, "#FFE9F3");
+    ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, collageWidth, collageHeight);
+    
+    // Header section
+    ctx.fillStyle = "#D63384";
+    ctx.fillRect(0, 0, collageWidth, 60);
+    ctx.fillStyle = "#FFFFFF";
+    ctx.font = "bold 28px 'Poppins', sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("✨ MoodPop Photobooth 💖", collageWidth / 2, 30);
+    
+    // Border di sekitar photos
+    ctx.strokeStyle = "#D63384";
+    ctx.lineWidth = borderWidth;
+    ctx.strokeRect(padding - borderWidth/2, padding + 60 - borderWidth/2, photosWidth + borderWidth, photosHeight + borderWidth);
     
     let loadedCount = 0;
     
@@ -564,18 +591,34 @@ const CaptureModule = {
       img.src = src;
       
       img.onload = () => {
-        const x = (index % cols) * cw;
-        const y = Math.floor(index / cols) * ch;
+        const col = index % cols;
+        const row = Math.floor(index / cols);
+        const x = padding + col * (cw + gapSize);
+        const y = padding + 60 + row * (ch + gapSize);
         
         ctx.drawImage(img, x, y, cw, ch);
         
-        ctx.strokeStyle = "#d63384";
-        ctx.lineWidth = 2;
+        // Inner border untuk setiap foto
+        ctx.strokeStyle = "#FFFFFF";
+        ctx.lineWidth = 3;
         ctx.strokeRect(x, y, cw, ch);
+        
+        // Shadow effect
+        ctx.strokeStyle = "#D6338440";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x - 2, y - 2, cw + 4, ch + 4);
         
         loadedCount++;
         
         if (loadedCount === total) {
+          // Footer
+          ctx.fillStyle = "#F8F9FA";
+          ctx.fillRect(0, collageHeight - 20, collageWidth, 20);
+          ctx.fillStyle = "#999999";
+          ctx.font = "12px 'Inter', sans-serif";
+          ctx.textAlign = "center";
+          ctx.fillText(new Date().toLocaleDateString("id-ID"), collageWidth / 2, collageHeight - 8);
+          
           const collageData = collageCanvas.toDataURL("image/png");
           document.getElementById("downloadBtn").dataset.collage = collageData;
         }
